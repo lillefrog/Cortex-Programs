@@ -1,0 +1,34 @@
+//====================================================
+// dimming encodes as introduced by mark
+
+#define CUE_ON				4000
+#define STIM_ON				4001
+#define TEST_DIMMED			4002
+#define DIST_DIMMED			4003
+#define DIST1_DIMMED			4004
+#define DIST2_DIMMED			4005
+#define DIMMING1			4006
+#define	DIMMING2			4007
+#define DIMMING3			4008
+#define MICRO_STIM			4009
+#define FIXSPOT_OFF			4010	
+
+
+
+
+#define BAR_RELEASE_BEFORE_TEST		5000
+#define EARLY_BAR_RELEASE		5001
+#define BAR_RELEASE_ON_TEST		5002
+#define	BAR_RELEASE_ON_DIST		5003
+#define LATE_BAR_RELEASE_ON_TEST	5004
+#define LATE_BAR_RELEASE_ON_DIST	5005
+
+#define BROKE_FIXATION			6000
+
+#define NLX_TARG_REL         104 
+#define NLX_DIST_REL_RF      105 
+#define NLX_DIST_REL_OUT1    106 
+#define NLX_DIST_REL_OUT2    107 
+#define NLX_NO_RELEASE       108
+#define NLX_FIX_BREAK        109
+#define NLX_EARL_REL         110 

@@ -1,0 +1,18 @@
+13 ~ Start trial
+14 ~ Bar pressed
+
+23 ~ center on
+25 ~ Target on
+27 ~ distractor 1 on
+29 ~ distractor 2 on
+
+15 ~ start waiting for bar release
+
+  26 Hide Target
+  28 Hide distractor 1
+  30 Hide distractor 2
+
+4 ~ Bar released
+
+  3  give reward
+  96 Reward given

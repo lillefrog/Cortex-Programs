@@ -1,0 +1,102 @@
+/* This file is a demo file showing the use of a subroutine and how it can pass information back to the */
+/* calling routine using pointers */
+
+#include "css_inc.h" /* it's best to include this in CSS files....it often comes in handy */
+
+#define MyArray   _pint0
+
+pint initCBArray(pint newArray, int length);
+int sumCBArray(pint newArray);
+float meanCBArray(pint newArray);
+int insertCBArray(pint newArray, int newValue);
+
+
+main()
+{
+int trialNr = get_trial_num();
+int MyNewValue;
+
+if (trialNr < 2)
+{
+ MyArray = initCBArray(MyArray, 10);
+}
+
+
+MyNewValue = random(-1,2);
+insertCBArray(MyArray, MyNewValue);
+
+Mprintf(1, " array sum = %d", sumCBArray(MyArray));
+Mprintf(2, " array mean = %f", meanCBArray(MyArray));
+Mprintf(3, " %d %d : %d %d %d %d %d %d %d %d %d %d", MyArray[0],MyArray[1],MyArray[2],MyArray[3],MyArray[4],MyArray[5],MyArray[6],MyArray[7],MyArray[8],MyArray[9],MyArray[10],MyArray[11]);
+set_timer(500);
+while(timer_expired()==0);
+}
+
+
+pint initCBArray(pint newArray, int length)
+{
+/* initialize a array of integers, the first two values in the array 
+are not part of the data, the first value is the length of the array and 
+the second is the last accessed position in the array. All empty positions
+are initialized to zero. newArray has to be defined before it is passed to
+this function. This function just sets the length and content of it */
+
+newArray = (pchar) calloc(length+2, sizeof(pint));
+newArray[0] = length;
+newArray[1] = 2;
+return newArray;
+}
+
+
+int sumCBArray(pint newArray)
+/* Calculate the sum of all values stored in array */
+{
+int cfi, length; 
+int mySum = 0;
+length = newArray[0];
+for (cfi=2;cfi<(length+2);cfi++) 
+	{
+	mySum = mySum + newArray[cfi];
+	}
+return mySum;
+}
+
+
+float meanCBArray(pint newArray)
+{
+/* Calculate the mean of all values stored in the array */
+int i; 
+float myMean = 0;
+int mySum = 0;
+int length = newArray[0];
+for (i=2;i<(length+2);i++)  // I have to check if this is really the entire array
+	{
+	mySum = mySum + newArray[i];
+	}
+myMean = ( ((float) mySum) / ((float) length) );
+return myMean;
+}
+
+
+
+int insertCBArray(pint newArray, int newValue)
+/* incrementing the position counter and inserting a value into Array overwriting 
+the current value. If the counter is at the last position it will return to the 
+first position in the array */
+{
+int length = newArray[0]+1;
+int position = newArray[1];
+
+if (length == position)
+	{
+	position = 2;
+	} 
+	else 
+	{
+	position = position + 1;
+	}
+
+newArray[position] = newValue;
+newArray[1] = position;
+return position; 
+}

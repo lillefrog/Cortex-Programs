@@ -1,0 +1,8 @@
+FIX_x = 0;
+FIX_y = 0;
+RF_x = 7; 
+RF_y = 0;
+DIST_x = -7; 
+DIST_y = 0;
+CUE_RADECC = 0;
+CUE_ECC = 0;

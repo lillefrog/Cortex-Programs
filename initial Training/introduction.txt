@@ -1,0 +1,10 @@
+This is the first programs you should use when traning a monkey to do a visual task in an experimental setup. Before using this the monkey should be comfortable with being in the chair and in the setup. 
+
+spout:
+This program just delivers unlimited rewards as long as the monkey thouches the touch bar. This is usually used by connecting the touchbar cable to the metal mouthpiece so the setup detects a touch every time the monkey tries to drink from the mouthpiece. This will teach him/her that the mouthpiece is good and that the clicking sound is the sound of water/juice. If the monkey is relaxed it should not take more than one or max two days to learn this. After this the program can be connedted to the normal touchbar or you can go directly to the next program.
+
+touchbar:
+This progran detects the monkey touching the touchbar and gives a big reward every time it happens but it gives no reward for continous touch. The number of rewards should be high enough that the monkey has time to notice the reward started and turn his head and start drinking. A good starting value is 30 to 40 clicks. Later when he understands what he has to do the sizs of the reward should be reduced significantly. 
+
+screen:
+

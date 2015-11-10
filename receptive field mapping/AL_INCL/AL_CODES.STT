@@ -1,0 +1,68 @@
+//====================================================
+/* changed 10/3/2006 Alwin used this up to now
+#define PARAMBASE              10000
+#define TRIALPARAM_START       4000
+#define TRIALPARAM_END         4001
+#define STIMPARAM_START        4002
+#define STIMPARAM_END          4003
+#define STIM_SWITCH            4004
+#define REWARDPARAM_START      4005
+#define REWARDPARAM_END        4006
+*/
+
+#define PARAMBASE              10000
+#define TRIALPARAM_START       300
+#define TRIALPARAM_END         301
+#define STIMPARAM_START        302
+#define STIMPARAM_END          303
+#define STIM_SWITCH            304
+#define REWARDPARAM_START      305
+#define REWARDPARAM_END        306
+
+#define SACCADE_ONSET           5006
+
+//====================================================
+// define neuralynx send events (send as 1 byte)
+
+#define NLX_TRIAL_START      255    
+#define NLX_RECORD_START      2    
+#define NLX_SUBJECT_START     4    
+#define NLX_STIM_ON           8    
+#define NLX_STIM_OFF          16    
+#define NLX_SUBJECT_END       32    
+#define NLX_RECORD_END        64   
+#define NLX_TRIAL_END        254
+
+#define NLX_TESTDIMMED         17
+#define NLX_DISTDIMMED         18
+#define NLX_BARRELEASED        19
+#define NLX_CUE_ON             20
+#define NLX_CUE_OFF            21
+#define NLX_DIST1DIMMED        22
+#define NLX_DIST2DIMMED        23
+#define NLX_SACCADE_START      24
+#define NLX_DIMMING1	       25 	 	
+#define	NLX_DIMMING2	       26	
+#define	NLX_DIMMING3           27
+#define NLX_MICRO_STIM	       28
+#define NLX_FIXSPOT_OFF		29
+
+					
+
+#define NLX_EVENT_1        9 
+#define NLX_EVENT_2        10
+#define NLX_EVENT_3        11
+#define NLX_EVENT_4        12
+#define NLX_EVENT_5        13
+#define NLX_EVENT_6        14
+#define NLX_EVENT_7        15
+
+
+#define NLX_READ_DATA        128
+
+// condition parameter encodes (send as 1 bytes) 
+#define NLX_TRIALPARAM_START 253 
+#define NLX_TRIALPARAM_END   252 
+// Stimparameter encodes (send as 2 bytes) 
+#define NLX_STIMPARAM_START 251 
+#define NLX_STIMPARAM_END   250 

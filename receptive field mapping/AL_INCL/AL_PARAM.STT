@@ -1,0 +1,49 @@
+//-----------------SETUP----------------------
+#define FRAMERATE       120 
+#define DIOBOARDNR      0 //setup1
+//#define DIOBOARDNR      1 //setup3
+#define PI              3.14159265358979
+
+#define MAX_BREAK_FIX_TIME 100 // this is used for FixCheck
+
+#define NumHits     _int0
+#define NumRew      _int1
+#define NumCycles   _int2
+#define Hist1_Trials   _int3
+#define Hist1_Correct   _int4
+#define Hist1_Errors   _int5
+#define Hist2_Trials   _int6
+#define Hist2_Correct   _int7
+#define Hist2_Errors   _int8
+#define Precondition	_int9
+#define CorrectInRow _int10
+#define ActualTrialNum _int11
+#define PreBlockNum _int12
+#define NewStartMarker _int13
+#define TrialCounter _int14
+#define MicroStimulations _int28
+#define NLX_connected _int29  // Set to one when we connect to NLX
+
+//#define MStimFac _pfloat0
+
+
+
+#define X_F _float0
+#define Y_F _float1
+#define X_1 _float2
+#define Y_1 _float3
+#define X_2 _float4
+#define Y_2 _float5
+
+#define TrialHistoryFilename "\AL_INCL\TRHST100.TXT"
+
+int missed_flag;// no response
+int early_flag;// response too early, before test
+int error_flag;// wrong response
+int correct_flag;// correct response
+int terminate_flag; // indicates that the trial is meant to rush through to the end
+int esc_flag;// abort by user
+int breakfix_flag;
+int readdata_flag;
+int GambleCode;
+

@@ -1,0 +1,151 @@
+#include "css_inc.h"
+// First function for training a new monkey. This program just gives water whenever the touchbar 
+// is held down. The bar can also be connected to the spout and it will then give water whenever 
+// the spout is touched. 
+
+// *** Global constants ***
+#define FALSE          	0
+#define TRUE           	1
+
+// *** Cortex persistent variables ***
+#define TotalCorrect		_int0 
+#define TrialDuration		_int1
+#define CorrectInRow 		_int2
+#define rewardNum               _int3
+
+// *** Function definitions ***
+
+int GetResponse();
+int GiveReward(int MinReward, int MaxReward);
+void EndTrial();
+
+
+
+// #################### MAIN ############################################################
+main()
+{
+ clear_eog();
+ if (TrialDuration<200) // the first time the program runs all delays are 0 and have to be reset
+    {
+      TotalCorrect = 0;
+      CorrectInRow = 0;
+      rewardNum = 0;
+		TrialDuration = 5000; // max trial duration
+    }
+
+ if (GetResponse() == TRUE)
+	{
+        CorrectInRow++;
+        GiveReward(8,16);
+	}
+  else
+    {
+        CorrectInRow = 0;
+    }
+ MessageInt(3,CorrectInRow);
+ MessageInt(4,rewardNum);
+ EndTrial(); 
+}
+// ######################################################################################
+
+
+  
+// ################ TestHisResponse ######################################################	
+// wait for him to touch the bar, you can't wait too long for this else cortex will crash 
+// if the trail gets too long. This is mainly a problem if you are using eye tracking.
+// If he touches the bar before time runs out this function returns true else it will return
+// false.
+
+int GetResponse()
+{
+    int Sucess = FALSE;
+    int ResponseTime;
+
+	encode(13); 						// start waiting for him to initiate trial
+	MS_TIMERset(1,TrialDuration); 	// Set how long we will wait for him to touch (max 10 sec)
+
+        // wait for him to let go
+        while((get_bar_state()==1) && (MS_TIMERcheck(1)>0))              // Waits for him to hold the bar
+		{
+		if (KeyPressed())
+			{  
+			return 0;
+			break;
+			}
+		}	
+
+        // wait for him to touch
+        while((get_bar_state()==0) && (MS_TIMERcheck(1)>0))              // Waits for him to hold the bar
+		{
+		if (KeyPressed())
+			{  
+			return 0;
+			break;
+			}
+		}	
+	encode(14); 						// Trial initiated
+	
+	if((MS_TIMERcheck(1)>0)) // trial sucess
+			{ 	  
+			encode(28);
+			TotalCorrect++;
+			Sucess = TRUE;
+			response_correct(3);
+			MessageInt(1,TotalCorrect); // update total number of correct answers
+			} 
+	else 
+			{
+			response_late(3);
+			Sucess = FALSE;
+			}
+			
+	
+	
+	
+    ResponseTime =  TrialDuration - MS_TIMERcheck(1);         // calculate response time
+    MessageInt(2,ResponseTime);					// display response time
+
+			
+
+	encode(16); 		// The waiting is done
+	return(Sucess);	
+}	
+// ######################################################################################
+
+	
+	
+// ################# GiveReward #########################################################
+// *** Give the monkey a Reward between min and max ***	
+int  GiveReward(int MinReward, int MaxReward)
+{        
+    int CurrentReward = CorrectInRow;
+    int x;
+	encode(3); // give reward
+    CurrentReward = random(MinReward,MaxReward);
+
+
+
+    for (x=1;x<=CurrentReward;x++)
+        {  
+            reward();
+            set_timer(100);
+            while(timer_expired()==0);
+            rewardNum++;
+        }
+	encode(96); // reward given
+   return 1;
+}	
+// ######################################################################################
+
+
+
+// #################  EndTrial  #########################################################
+//  *** End the trial and start the next one ***
+void EndTrial()
+{
+	set_timer(10);
+	while(timer_expired()==0);
+    end_trial();
+    return;
+}
+// ######################################################################################

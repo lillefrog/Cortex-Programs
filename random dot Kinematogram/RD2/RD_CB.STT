@@ -1,0 +1,758 @@
+#include "css_inc.h"
+#include "RD2/CB_CODES.STT"
+
+/** INTRODUCTION MAIN TASK**/
+/** Random dot motion
+When the subject holds down the touch bar a field of dots are shown with a level of
+coherent motion mixed with random dots. The subject has to saccade in the direction
+of the motion to one of two targets
+ **/
+
+// *** Global constants ***
+#define PARAMETER_FILE  "RD2/RD_CB.PAR"  // path to parameter file
+
+// *** Cortex persistent variables ***  // These variables are stored from trial to trial
+#define TotalCorrect     _int0
+#define CorrectInRow     _int1
+#define RewardsGiven     _int2
+#define stopAll          _int3
+
+#define PreStimFixTime	_int5  // Time he needs to fixate before target is shown
+#define MovieOnTime		_int6  // should never be longer than the movies
+#define TargetDelay		_int7  // Delay before showing saccade targets
+#define MaxResponsTime	_int8  // max total response time must be at least 201 ms
+#define MaxSaccTime		_int9  // max allowed time for saccade
+#define FixSpotOnTime		_int10 // delay before turning off fixspot
+#define PostTrialFixTime	_int11  // time he has to fixate after the saccade
+#define DIOBOARDNR       _int12
+#define CURRMOVIE        _int13
+#define TIMEOUT        _int14
+
+#define FixPosX          _float0
+#define FixPosY          _float1
+#define MovieX          _float2  // X position of dot movie
+#define MovieY          _float3  // Y position of dot movie
+#define SaccEcc          _float4  // saccadic target eccentricity
+#define TARGET_FIXWIN    _float5  // size of saccade fix win
+
+#define MyArray   _pint0
+
+
+// *** Function definitions ***  
+int  GetResponse();									// wait for and record the subjects response
+int  SetDefaultValues();							// Get default values from parameter file
+int  TimeDelay(int timeoutTime);
+int  InitObjects(int positionOrder, int colorOrder, int coherencePos);        // initialize the movies and their positions
+int  HideObjects();                              	// Hide all objects, used for cleaning up when ending the trial
+int  CheckKey();
+int  GiveReward(int MinReward, int MaxReward);		// give a reward depending on number of correct ansvers in a row
+void SendEvents(int code);			// Send event to neuralynx and cortex
+void EndTrial();
+float ReadPARAM(pchar ParName);
+int WriteTrialParam(int trial, int coherence, int SelectedStimulus);  // Writes trial parameters to the cortex files
+pint initCBArray(pint newArray, int length);
+int insertCBArray(pint newArray, int newValue);
+float meanCBArray(pint newArray);
+int nextDirection(pint newArray);
+
+
+// #################### MAIN ############################################################
+main()
+{
+
+ clear_eog();
+
+  if (MaxResponsTime<200)
+    {
+		SetDefaultValues(); 
+		MyArray = initCBArray(MyArray, 10);
+    }
+
+ if (GetResponse() == TRUE)       // gets the response from the subject (returns true if correct response)
+	{
+        TimeDelay(300);
+        CorrectInRow++;           // increase number of correct ansvers in a row, used for giving rewards
+        GiveReward(3,9);          // give rewards between 3 and 9 depending on CorrectInRow
+        TotalCorrect++;
+	}
+  else
+    {
+        TimeDelay(TIMEOUT);                   // timeout at wrong answer
+        CorrectInRow = 0;         // Reset CorrectInRow when subject makes a mistake
+    }
+ MessageInt(1,TotalCorrect);
+ MessageInt(2,CorrectInRow);
+ MessageInt(3,RewardsGiven);
+ 
+ EndTrial(); 
+}
+// ######################################################################################
+
+
+
+// ################ Get Response ######################################################	
+// This controls the timing of stimulus and response (this is where most of the good stuff is happening)
+int GetResponse()
+{
+int TargetDimmed = FALSE;
+int FixpointHidden = TRUE;
+int Sucess = FALSE;
+int ResponseTime = 0;
+int trial = get_trial_num();
+int Coherence = 4; // random(1,12);
+int Direction = 1;// ( 2 * (int) random(1,3) )-3; // direction of movement
+int expectedResp, wrongResp;
+int FixOn = FALSE;
+int BarOn = FALSE;
+int TargetOn = FALSE;
+int FixspotOn = FALSE;
+int MovieOn = FALSE;
+int Saccade_Done = FALSE;
+int Saccade_Start = FALSE;
+int SelectedStimulus = 0; // random(1,7); //  1-3 is left 4-6 is right
+// int condition = get_cond_num ();
+int Target_correct = FALSE;
+stopAll = FALSE; // stop the experiment
+
+SelectedStimulus = nextDirection(MyArray);
+
+SendEvents(NLX_TRIAL_START);
+
+WriteTrialParam(trial, Coherence, SelectedStimulus); // writes all the trial parameters to the cortex data file 
+
+if (SelectedStimulus>3)
+	{
+	expectedResp = 15;
+	wrongResp = 13;
+	}
+	else
+	{
+	expectedResp = 13;
+	wrongResp = 15;
+	}
+
+set_expected_response (expectedResp); // Left=13 right=15 
+
+if (trial>1)
+ {
+ dont_unload_conds(); // keep videos in memory
+ }
+ 
+
+// ## start waiting for him to hold the touch bar ####
+while((BarOn == FALSE) && (stopAll == FALSE))
+    {
+
+	CheckKey();
+		
+	if (get_bar_state()==1)	
+		{
+		BarOn = TRUE;
+		}
+	} 
+ 
+display_fixspot(1); // show fix point if it wasnt shown before	
+SendEvents(NLX_FIXSPOT_ON);
+FixspotOn = TRUE;
+	
+// ## start waiting for him to fixate ####
+while((FixOn==FALSE) && (BarOn==TRUE) && (stopAll == FALSE))
+    {
+    CheckKey();
+	
+    if(get_bar_state()==0)
+		{
+		display_fixspot(0); // Hide fix point
+		SendEvents(NLX_FIXSPOT_OFF);
+		SendEvents(NLX_BARRELEASED);
+		BarOn = FALSE;
+		FixspotOn = FALSE;
+		}
+		
+    if(get_fixation_state()==1)
+		{
+		FixOn = TRUE;
+		SendEvents(NLX_FIX_START);
+		}
+	} 
+
+// ## Start pre-stim time ####
+
+// start recording eye movement
+set_timer(PreStimFixTime); 
+while((BarOn==TRUE) && (FixOn==TRUE) && (timer_expired()==0) && (stopAll == FALSE)) 
+	{
+
+        CheckKey();
+
+	// wait pre trial fix time
+    if(get_fixation_state()==0)
+		{
+		SendEvents(NLX_FIX_BREAK);
+		FixOn = FALSE;
+		}	
+		
+    if(get_bar_state()==0)
+		{
+		SendEvents(NLX_BARRELEASED);
+		BarOn = FALSE;
+		}		
+	}
+
+// ## Show stimulus	
+SendEvents(NLX_STIM_ON);
+InitObjects(SelectedStimulus,1,Coherence);           // Set positions for objects   
+MovieOn = TRUE;
+MS_TIMERset(1,FixSpotOnTime); // Set delay for target to dissapear
+MS_TIMERset(2,MovieOnTime); // Set delay for target to dissapear
+MS_TIMERset(3,TargetDelay); // Delay before showing the saccade targets
+MS_TIMERset(4,MaxResponsTime); // set max duration 
+
+while((BarOn==TRUE) && (FixOn==TRUE) && (stopAll == FALSE))         // show dots and wait for saccade
+	{
+	if((TargetOn==FALSE) && (MS_TIMERcheck(3)==0)) // Show Targets  
+		{
+		Gon_off(TEST0,ON);
+		Gon_off(TEST1,ON);
+		TargetOn = TRUE;
+		}	
+
+	if((FixspotOn==TRUE) && (MS_TIMERcheck(1)==0)) // Turn off fixspot
+		{
+		display_fixspot(0); 	
+		SendEvents(NLX_FIXSPOT_OFF);
+		ITEM_POSmark_pos(FIXSPOT,1,BLACK);   // hide fixspot
+		FixspotOn = FALSE;
+		}		
+		
+		
+	if((MovieOn==TRUE) && (MS_TIMERcheck(2)==0)) // Turn off movie
+		{
+		Gon_off(CURRMOVIE,OFF);	
+		SendEvents(NLX_TARGETDIMMED);
+		MovieOn = FALSE;
+		ITEM_POSmark_pos(CURRMOVIE,1,BLACK);
+		}		   
+
+	if(MS_TIMERcheck(4)==0) // Time out with no response 
+		{
+		break;
+		}
+
+	if(get_fixation_state()==0)
+		{
+		SendEvents(NLX_SACCADE_START);
+		Saccade_Start = TRUE;
+		FixOn = FALSE;
+		}	
+
+	if(get_bar_state()==0)
+		{
+		SendEvents(NLX_BARRELEASED);
+		BarOn = FALSE;
+		}
+
+        CheckKey();
+
+
+	if(MS_TIMERcheck(2)!=0) // Turn off movie and fixspot
+		{
+		Gmovie_step(CURRMOVIE,Direction,MOVIE_STEP_WRAP); // update the moving grating for the target
+		Gflush(1);
+		}
+	}
+	
+
+	
+
+// ## check for fixation
+if((Saccade_Start==TRUE) && (stopAll == FALSE))
+	{
+	// wait for him to finish saccade
+	ResponseTime = (MaxResponsTime - MS_TIMERcheck(4)); 
+	MS_TIMERset(6,MaxSaccTime);
+	while((MS_TIMERcheck(6)!=0) && (stopAll == FALSE))
+		{
+		if (ITEM_POSeye_iswithin(TEST0,1,TARGET_FIXWIN,TARGET_FIXWIN)==1)
+			{
+			encode(FIXATION_OCCURS); // correct target
+			Saccade_Done = TRUE;
+			break;
+			}
+			
+			if (ITEM_POSeye_iswithin(TEST1,1,TARGET_FIXWIN,TARGET_FIXWIN)==1)
+			{
+			encode(FIXATION_OCCURS); // wrong target
+			Saccade_Done = TRUE;
+			break;
+			}	
+			
+		if(get_bar_state()==0)
+			{
+			SendEvents(NLX_BARRELEASED);
+			BarOn = FALSE;
+			break;
+			}
+
+        CheckKey();
+
+        } 
+	}
+
+ 
+// ## Post Trial fixation ####
+if ((Saccade_Done == TRUE) && (stopAll == FALSE))
+	{
+	set_timer(PostTrialFixTime);
+	while((timer_expired()==0) && (stopAll == FALSE));
+	
+
+	// check for continued fixation on saccade target
+	if (ITEM_POSeye_iswithin(TEST0,1,TARGET_FIXWIN,TARGET_FIXWIN)==0)
+		{
+		if (ITEM_POSeye_iswithin(TEST1,1,TARGET_FIXWIN,TARGET_FIXWIN)==0)
+			{
+			FixOn = FALSE;
+			Saccade_Done = FALSE;
+			SendEvents(NLX_FIX_BREAK);
+			}
+			else
+			{
+			Saccade_Done = TRUE;
+			Target_correct = FALSE;
+			}
+		}
+	else
+		{
+		// he did the post trial fixation
+		Saccade_Done = TRUE;
+		Target_correct = TRUE;
+		}
+	}
+ 
+ 
+// ## Evaluate trial ####
+ if(Saccade_Done==TRUE)
+	{
+	if(Target_correct == TRUE)
+		{
+		if((ResponseTime > 50) && (ResponseTime < (MaxResponsTime)))
+			{
+			Sucess = TRUE;
+			response_correct(expectedResp);
+			insertCBArray(MyArray, (expectedResp-14) );
+			}
+		else
+			{
+			Sucess = FALSE;
+			if (ResponseTime > (MaxResponsTime))
+				{
+				response_late(2);
+				}
+			else
+				{
+				response_early(5);
+				}
+			}
+		}
+	else
+		{
+		response_wrong(wrongResp);
+		insertCBArray(MyArray, (wrongResp-14) );
+		Sucess = FALSE;
+		}
+	}
+else
+	{
+	if(Saccade_Start==TRUE)
+		{
+		// he just broke fixation without doing a saccade
+		break_fixation_error();
+		}
+		else
+		{
+		// no saccade was ever detected
+		response_missing(1);
+		}
+	}
+
+HideObjects(); 	// hide all remaining objects
+
+if ((trial>1) && (stopAll == FALSE))
+{
+  dont_unload_conds(); // keep items in memory this has to be off if you use seperate conditions with different objects
+}
+
+
+SendEvents(NLX_TRIAL_END);
+return(Sucess);	
+}	
+// ############### End Get Response ###############################################
+
+
+
+// ############### Time out ###############################################
+int TimeDelay(int timeoutTime)
+{
+  set_timer(timeoutTime);   // to give you time to use the ESC button
+  while((timer_expired()==FALSE) && (stopAll == FALSE))
+  {
+	CheckKey();
+	// if (KeyPressed())       // Escape posibility
+	//	{  
+	//	
+	//	stopAll = TRUE;
+	//	break;
+	//	} 
+  }
+  return TRUE;
+}
+
+// ########################################################################
+
+
+
+// ############### Check Key ####################################################
+// check if a key has been pressed and responds to it
+// If it is F4 we reload the values from the par file
+// If it is ESC we exit the program
+int CheckKey()
+{
+if(KeyPressed())
+	{
+	switch(GetAKey())
+		{
+		case K_F4:
+			SetDefaultValues();
+		break;
+		
+		case K_ESCAPE:
+			stopAll = TRUE;
+			set_timer(400);   // to give you time to use the ESC button
+			while(timer_expired()==0); 
+        break;
+		
+		}
+	}
+return(stopAll);
+}
+// ########################################################################
+
+
+
+// ############### InitObjects ####################################################
+// Displays the objects on the screen in positions according to the given Order
+int InitObjects(int positionOrder, int colorOrder, int coherencePos)  
+{
+int sucess;
+int StartFrame;
+
+switch (positionOrder) // set the positions of the target and the movie direction
+	{
+	case(1): CURRMOVIE = TEST2; GmoveABS(TEST0,  -SaccEcc, 0); GmoveABS(TEST1,  SaccEcc, 0); break;       
+	case(2): CURRMOVIE = TEST3; GmoveABS(TEST0,  -SaccEcc, 0); GmoveABS(TEST1,  SaccEcc, 0); break;  
+	case(3): CURRMOVIE = TEST4; GmoveABS(TEST0,  -SaccEcc, 0); GmoveABS(TEST1,  SaccEcc, 0); break;  
+	case(4): CURRMOVIE = TEST5; GmoveABS(TEST0,  SaccEcc, 0); GmoveABS(TEST1,  -SaccEcc, 0); break;  
+	case(5): CURRMOVIE = TEST6; GmoveABS(TEST0,  SaccEcc, 0); GmoveABS(TEST1,  -SaccEcc, 0); break;  
+	case(6): CURRMOVIE = TEST7; GmoveABS(TEST0,  SaccEcc, 0); GmoveABS(TEST1,  -SaccEcc, 0); break;   
+	}
+	
+	
+switch (coherencePos) // set the positions of the target and the movie direction
+	{
+	case(1): StartFrame=0;			break;     
+	case(2): StartFrame=500;		break;  
+	case(3): StartFrame=1000;		break;  
+	case(4): StartFrame=1500;		break; 
+	case(5): StartFrame=2000;		break; 
+	case(6): StartFrame=2500;		break; 
+	case(7): StartFrame=3000;		break; 
+	case(8): StartFrame=3000;		break; 	
+	case(9): StartFrame=4000;		break; 
+	case(10): StartFrame=4500;		break;
+	case(11): StartFrame=5000;		break; 
+	}	
+// StartFrame=2000; 
+Gon_off(CURRMOVIE, ON);                          // turn target on
+GmoveABS(CURRMOVIE, MovieX, MovieY);
+Gmovie_step(CURRMOVIE,1,MOVIE_FIRST_FRAME);     // show first frame of Target
+// Gmovie_step(CURRMOVIE,1,StartFrame);     // show first frame of Target
+sucess = Gflush(1);   // update the screen before marking the positions (important)
+
+ITEM_POSmark_pos(FIXSPOT,1,GREEN);   // show fixspot
+ITEM_POSmark_pos(CURRMOVIE,1,GREEN);   // Marks the position of the target on the user screen
+ITEM_POSmark_pos(TEST0,1,WHITE);
+ITEM_POSmark_pos(TEST1,1,GREEN);
+
+return(sucess); // Return TRUE if screen update sucessful  
+}
+// ######################################################################################
+	
+	
+
+// ################ Set Default Values ######################################################	
+// this should read all the default values from the parameter file
+int SetDefaultValues()
+{	
+FixPosX = (int) ReadPARAM("FixSpotX"); // X position of fixspot
+FixPosY = (int) ReadPARAM("FixSpotY"); // Y position of fixspot
+MovieX = (int) ReadPARAM("MovieX") + FixPosX; // X position of dot movie
+MovieY = (int) ReadPARAM("MovieY") + FixPosY; // X position of dot movie
+
+SaccEcc          = ReadPARAM("SaccTargEcc");    // set the positions of saccade targets
+PreStimFixTime   = ReadPARAM("PreStimFixTime"); // Time he needs to fixate before target is shown
+MovieOnTime = (int) ReadPARAM("MovieOnTime");   // should never be longer than the movies
+FixSpotOnTime = (int) ReadPARAM("FixSpotOnTime");   // should never be longer than the movies
+TargetDelay = (int) ReadPARAM("TargetDelay");   // Delay before showing saccade targets
+MaxResponsTime = (int) ReadPARAM("MaxResponsTime");   // max total response time
+MaxSaccTime		 = (int) ReadPARAM("MaxSaccTime"); // max allowed time for saccade
+PostTrialFixTime = (int) ReadPARAM("PostTrialFixTime"); // time he has to fixate after the saccade
+
+TIMEOUT = (int) ReadPARAM("TimeOut");
+DIOBOARDNR       = (int) ReadPARAM("DIOBOARD");
+TARGET_FIXWIN    = ReadPARAM("Target_Fixwin");  // target fixwin for saccade
+
+if (MaxResponsTime==0)
+	{   
+	MessageString(5,"Parameter file not found!"); // might need to use a pointer instead add the appropriate GETSmessage lines to CORTEX.CFG. 
+	}
+
+
+Gon_off(TEST3, OFF);  // turn unused stuff off
+Gon_off(TEST4, OFF);  // 
+Gon_off(TEST5, OFF);  // 
+Gon_off(TEST6, OFF);  //
+Gon_off(TEST7, OFF);  // 
+	
+// initial variables
+CorrectInRow = 0;
+
+// set fixspot position	
+GmoveABS (FIXSPOT, FixPosX, FixPosY);  
+
+// setup neuralynx	
+SendEvents(0);	
+DEVoutp(DIOBOARDNR,0x03,0x81);	
+return TRUE;
+}
+// ######################################################################################
+
+
+
+// ################ Send Events #########################################################
+void SendEvents(int code)
+{
+// send event to Neuralynx and a copy to cortex, The delays are added to make sure that 
+// neuralynx has time to actually read the data before it shifts again
+int timegap = 1; // set to 0 if you are not recording on neuralynx
+// send 8 bits to port A
+DEVoutp(DIOBOARDNR,0,code);
+// send event to cortex too
+encode(code);
+set_timer(timegap); while( timer_expired() == 0 ); // delay
+// send zero to neuralymx 
+DEVoutp(DIOBOARDNR,0,0);
+set_timer(timegap); while( timer_expired() == 0 ); // delay
+}
+// ######################################################################################
+
+
+
+
+// ################ HideObjects #########################################################	
+// Hide all objects and updates the screen
+int HideObjects()
+{
+Gon_off(TEST0, OFF);  // turn sacc target 1 off
+Gon_off(TEST1, OFF);  // turn sacc target 2 off
+Gon_off(CURRMOVIE, OFF);  // turn Movie off
+display_fixspot(0); // Hide fix point
+return(Gflush(1));    // update screen 
+}
+// ######################################################################################
+
+  
+
+// ################# GiveReward #########################################################
+// *** Give the monkey a Reward between min and max ***	 depending on the number of previosly correct ansvers
+int  GiveReward(int MinReward, int MaxReward)
+{        
+int CurrentReward = CorrectInRow+MinReward ; // use number of correct responses as number of rewards
+int Counter;
+
+	// CurrentReward = random(MinReward,MaxReward); // uncomment this line to get a random reward 
+
+if(CurrentReward > MaxReward)   
+    { CurrentReward=MaxReward; }  // Make sure that the reward is below or equal to MaxReward
+
+if(CurrentReward < MinReward)
+    { CurrentReward=MinReward; }  // Make sure that the reward is above or equal to MinReward
+
+for (Counter=1;Counter<=CurrentReward;Counter++)
+	{  
+		reward();
+		SendEvents(NLX_GIVEREWARD);
+		set_timer(95);
+		while(timer_expired()==0);
+		RewardsGiven++;
+	}
+SendEvents(NLX_REWARDGIVEN);
+return 1;
+}	
+// ######################################################################################
+
+
+// #################  EndTrial  #########################################################
+//  *** End the trial and start the next one ***
+void EndTrial()
+{
+end_trial();
+return;
+}
+// ######################################################################################
+
+
+// #################  Read Parameters  #########################################################
+//  *** Read Parameters from parameter file ***  // from Alwin
+float ReadPARAM(pchar ParName)
+{ 
+char fn[50];
+char p[50];
+int k;
+float ParValue;
+k = sprintf(fn,PARAMETER_FILE); // stores ParFile in fn and returns the number of caracters in the string
+k = sprintf(p,ParName);  // stores ParName in p and returns the number of caracters in the string
+ParValue = get_param(p,0.0,fn);   // get_param( name of the parameter , default value , name of the file to search)
+return ParValue;
+}
+// ######################################################################################
+
+
+// #################  Write trial parameters #########################################################
+// ***  Writes trial parameters to the cortex files, this means that each data file has all the settings used to record the data point  ***
+// Trial is the trial number from cortex, Coherence is the coherence in percent and Direc is a number from 1 to 6 
+// where 1-3 is left stimulus and 4-7 is right stimulus
+// int WriteTrialParam(int pOrder, int cOrder, int Direc)
+int WriteTrialParam(int trial, int coherence, int SelectedStimulus)
+{
+int d1, d2, d3;
+int value = trial;
+int condition = get_cond_num ();
+
+// split the trial number up in individual digits
+d1 = (int) (value % 10);
+value /= 10;
+d2 = (int) (value % 10);
+value /= 10;
+d3 = (int) (value % 10);
+
+// Write parameters to Neuralynx
+SendEvents(NLX_TRIALPARAM_START);
+SendEvents(40+d1); // ones in trial number
+SendEvents(40+d2); // tens in trial number
+SendEvents(40+d3); // hundreds in trial number
+SendEvents(39); // space
+SendEvents(40+coherence); // coherence number 
+SendEvents(40+SelectedStimulus); // space
+SendEvents(NLX_TRIALPARAM_END);
+	
+// Write parameters to cortex
+encode(TRIALPARAM_START); // Start Trial parameters 
+encode(PARAMBASE+ (int) (FixPosX*100)); // 01 Position Fixpoint X
+encode(PARAMBASE+ (int) (FixPosY*100)); // 02 Position Fixpoint Y
+encode(PARAMBASE+ (int) (MovieX*100)); // 03 Position movie X
+encode(PARAMBASE+ (int) (MovieY*100)); // 04 Position movie Y
+encode(PARAMBASE+ (int) (100- (10*(coherence-1))) );  // 05 coherence
+encode(PARAMBASE+ trial );  // 06 trial number
+encode(PARAMBASE+ condition );   // 07 condition 
+encode(PARAMBASE+ SelectedStimulus);        // 08 selected stimulus 1-3 is left 4-6 is right
+encode(PARAMBASE+ 0);        // 15 unused
+encode(PARAMBASE+ 0);        // 16 unused
+encode(PARAMBASE+ 0);        // 17 unused
+encode(PARAMBASE+ 0);        // 18 unused
+encode(PARAMBASE+ 0);        // 19 unused
+encode(TRIALPARAM_END); // End Trial parameters
+	
+return TRUE;
+}
+// ######################################################################################
+
+
+
+pint initCBArray(pint newArray, int length)
+{
+/* initialize a array of integers, the first two values in the array 
+are not part of the data, the first value is the length of the array and 
+the second is the last accessed position in the array. All empty positions
+are initialized to zero. newArray has to be defined before it is passed to
+this function. This function just sets the length and content of it */
+
+newArray = (pchar) calloc(length+2, sizeof(pint));
+newArray[0] = length;
+newArray[1] = 2;
+return newArray;
+}
+
+int insertCBArray(pint newArray, int newValue)
+/* incrementing the position counter and inserting a value into Array overwriting 
+the current value. If the counter is at the last position it will return to the 
+first position in the array */
+{
+int length = newArray[0]+1;
+int position = newArray[1];
+
+if (length == position)
+	{
+	position = 2;
+	} 
+	else 
+	{
+	position = position + 1;
+	}
+
+newArray[position] = newValue;
+newArray[1] = position;
+return position; 
+}
+
+float meanCBArray(pint newArray)
+{
+/* Calculate the mean of all values stored in the array */
+int i; 
+float myMean = 0;
+int mySum = 0;
+int length = newArray[0];
+for (i=2;i<(length+2);i++)  // I have to check if this is really the entire array
+	{
+	mySum = mySum + newArray[i];
+	}
+myMean = ( ((float) mySum) / ((float) length) );
+return myMean;
+}
+
+int nextDirection(pint newArray)
+{
+/* Calculate the mean of all values stored in the array */
+int i; 
+int Stimulus;
+float myMean = 0;
+int mySum = 0;
+int length = newArray[0];
+for (i=2;i<(length+2);i++)  // I have to check if this is really the entire array
+	{
+	mySum = mySum + newArray[i];
+	}
+myMean = ( ((float) mySum) / ((float) length) );
+
+
+if ( (myMean+1)*16383 > rand2() )
+{
+	Stimulus = random(1,4); //  1-3 is left 4-6 is right
+}
+else
+{
+	Stimulus = random(4,7); //  1-3 is left 4-6 is right
+}
+
+return Stimulus;
+}

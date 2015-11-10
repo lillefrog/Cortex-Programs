@@ -1,0 +1,81 @@
+//====================================================
+#define K_0        0x0B30 // link keybord output code for 0 to the variable K_0 
+#define K_1        0x0231 // link keybord output code for 1 to the variable K_1
+#define K_2        0x0332 //  and so on
+#define K_3        0x0433 // this makes the code more consistent when getting input from the keyboard
+#define K_4        0x0534
+#define K_5        0x0635
+#define K_6        0x0736
+#define K_7        0x0837
+#define K_8        0x0938
+#define K_9        0x0A39
+
+#define FALSE  0
+#define TRUE   1
+
+#define PARAMBASE              10000
+#define TRIALPARAM_START       300
+#define TRIALPARAM_END         301
+#define STIMPARAM_START        302
+#define STIMPARAM_END          303
+#define STIM_SWITCH            304
+#define REWARDPARAM_START      305
+#define REWARDPARAM_END        306
+
+#define SACCADE_ONSET          5006
+
+//====================================================
+// define neuralynx send events (send as 1 byte)
+
+
+   
+  
+  
+
+#define NLX_RECORD_START      2    
+#define NLX_SUBJECT_START     4    
+#define NLX_STIM_ON           8 
+#define NLX_EVENT_1        9 
+#define NLX_EVENT_2        10
+#define NLX_EVENT_3        11
+#define NLX_EVENT_4        12
+#define NLX_EVENT_5        13
+#define NLX_GIVEREWARD         14
+#define NLX_WAITFORBAR         15
+#define NLX_STIM_OFF          16  
+#define NLX_TARGETDIMMED       17
+#define NLX_DISTDIMMED         18
+#define NLX_BARRELEASED        19
+#define NLX_CUE_ON             20
+#define NLX_CUE_OFF            21
+#define NLX_DIST1DIMMED        22
+#define NLX_DIST2DIMMED        23
+#define NLX_SACCADE_START      24
+#define NLX_DIMMING1	        25 	 	
+#define NLX_DIMMING2	        26	
+#define NLX_DIMMING3          27
+#define NLX_MICRO_STIM	    28
+#define NLX_FIXSPOT_OFF		29
+#define NLX_FIXSPOT_ON		30
+#define NLX_SUBJECT_END       32  
+// code 39 encodes an empty space in the NLX_TRIALPARAM 
+// code 40 - 49 encodes the numbers from 0-9 in the NLX_TRIALPARAM
+
+#define NLX_RECORD_END        64 
+#define NLX_REWARDGIVEN       96
+#define NLX_FIX_START        108
+#define NLX_FIX_BREAK        109
+
+#define NLX_TRIAL_END        254
+#define NLX_TRIAL_START      255   
+
+
+#define NLX_READ_DATA        128
+
+// condition parameter encodes (send as 1 bytes) 
+#define NLX_TRIALPARAM_START 253 
+#define NLX_TRIALPARAM_END   252 
+
+// Stimparameter encodes (send as 2 bytes) 
+#define NLX_STIMPARAM_START 251 
+#define NLX_STIMPARAM_END   250 

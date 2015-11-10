@@ -9,22 +9,22 @@ FixSpotY = 0;
 // X position of dot movie
 MovieX = 0;
 // Y position of dot movie                   
-MovieY = 7;
+MovieY = 0;
   
 Target_Fixwin = 5.0;
  // size of saccade fix win
-SaccTargEcc = 6;
+SaccTargEcc = 7;
  // saccadic target eccentricity
 
 
 // times for random dot task
-TimeOut = 5000;
-PreStimFixTime = 100;
+TimeOut = 8000;
+PreStimFixTime = 500;
  // Time he needs to fixate before target is shown
 MovieOnTime = 3000;
 FixSpotOnTime = 2000;
  // should never be longer than the movies
-TargetDelay = 500;
+TargetDelay = 1500;
  // Delay before showing saccade targets
 MaxResponsTime = 4000;
  // max total response time

@@ -15,3 +15,9 @@
 *.PDF	 diff=astextplain
 *.rtf	 diff=astextplain
 *.RTF	 diff=astextplain
+*.STT	 diff=astextplain
+*.stt	 diff=astextplain
+*.ITM	 diff=astextplain
+*.itm	 diff=astextplain
+*.CND	 diff=astextplain
+*.cnd	 diff=astextplain

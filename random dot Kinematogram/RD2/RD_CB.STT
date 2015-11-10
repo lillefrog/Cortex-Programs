@@ -15,7 +15,8 @@ of the motion to one of two targets
 #define TotalCorrect     _int0
 #define CorrectInRow     _int1
 #define RewardsGiven     _int2
-#define stopAll          _int3
+#define lastReward     _int3
+#define stopAll          _int4
 
 #define PreStimFixTime	_int5  // Time he needs to fixate before target is shown
 #define MovieOnTime		_int6  // should never be longer than the movies
@@ -35,7 +36,8 @@ of the motion to one of two targets
 #define SaccEcc          _float4  // saccadic target eccentricity
 #define TARGET_FIXWIN    _float5  // size of saccade fix win
 
-#define MyArray   _pint0
+#define RL_Array		_pint0
+#define Corr_Array		_pint1
 
 
 // *** Function definitions ***  
@@ -49,11 +51,12 @@ int  GiveReward(int MinReward, int MaxReward);		// give a reward depending on nu
 void SendEvents(int code);			// Send event to neuralynx and cortex
 void EndTrial();
 float ReadPARAM(pchar ParName);
-int WriteTrialParam(int trial, int coherence, int SelectedStimulus);  // Writes trial parameters to the cortex files
+int WriteTrialParam(int trialNr, int coherence, int SelectedStimulus);  // Writes trial parameters to the cortex files
 pint initCBArray(pint newArray, int length);
 int insertCBArray(pint newArray, int newValue);
 float meanCBArray(pint newArray);
 int nextDirection(pint newArray);
+int percentCorrect(pint newArray);
 
 
 // #################### MAIN ############################################################
@@ -62,29 +65,35 @@ main()
 
  clear_eog();
 
-  if (MaxResponsTime<200)
+ // if (MaxResponsTime<200)
+  if(get_trial_num()<2)
     {
 		SetDefaultValues(); 
-		MyArray = initCBArray(MyArray, 10);
+		RL_Array = initCBArray(RL_Array, 10); // array for storing right/left results
+		Corr_Array = initCBArray(Corr_Array, 20); // array for storing right/left results
     }
 
  if (GetResponse() == TRUE)       // gets the response from the subject (returns true if correct response)
 	{
         TimeDelay(300);
         CorrectInRow++;           // increase number of correct ansvers in a row, used for giving rewards
-        GiveReward(3,9);          // give rewards between 3 and 9 depending on CorrectInRow
+        GiveReward(2,10);          // give rewards between 3 and 9 depending on CorrectInRow
         TotalCorrect++;
 	}
   else
     {
-        TimeDelay(TIMEOUT);                   // timeout at wrong answer
-        CorrectInRow = 0;         // Reset CorrectInRow when subject makes a mistake
+       
+        // Reset CorrectInRow when subject makes a mistake
     }
- MessageInt(1,TotalCorrect);
- MessageInt(2,CorrectInRow);
- MessageInt(3,RewardsGiven);
- 
- EndTrial(); 
+// MessageInt(1,TotalCorrect);
+// MessageInt(2,CorrectInRow);
+MessageInt(3,RewardsGiven);
+Mprintf(1, "Total correct = %d, Percent Correct = %d ", TotalCorrect, percentCorrect(Corr_Array) );
+Mprintf(2, "Correct in row = %d ", CorrectInRow);
+Mprintf(3, "Total Rewards = %d, Last Given = %d ", RewardsGiven, lastReward);
+
+Mprintf(5, " %d %d : %d%d%d%d%d %d%d%d%d%d", RL_Array[0],RL_Array[1],RL_Array[2],RL_Array[3],RL_Array[4],RL_Array[5],RL_Array[6],RL_Array[7],RL_Array[8],RL_Array[9],RL_Array[10],RL_Array[11]);
+EndTrial(); 
 }
 // ######################################################################################
 
@@ -98,7 +107,7 @@ int TargetDimmed = FALSE;
 int FixpointHidden = TRUE;
 int Sucess = FALSE;
 int ResponseTime = 0;
-int trial = get_trial_num();
+int currTrial = get_trial_num();
 int Coherence = 4; // random(1,12);
 int Direction = 1;// ( 2 * (int) random(1,3) )-3; // direction of movement
 int expectedResp, wrongResp;
@@ -114,11 +123,11 @@ int SelectedStimulus = 0; // random(1,7); //  1-3 is left 4-6 is right
 int Target_correct = FALSE;
 stopAll = FALSE; // stop the experiment
 
-SelectedStimulus = nextDirection(MyArray);
+SelectedStimulus = nextDirection(RL_Array);
 
 SendEvents(NLX_TRIAL_START);
 
-WriteTrialParam(trial, Coherence, SelectedStimulus); // writes all the trial parameters to the cortex data file 
+WriteTrialParam(currTrial, Coherence, SelectedStimulus); // writes all the trial parameters to the cortex data file 
 
 if (SelectedStimulus>3)
 	{
@@ -132,12 +141,6 @@ if (SelectedStimulus>3)
 	}
 
 set_expected_response (expectedResp); // Left=13 right=15 
-
-if (trial>1)
- {
- dont_unload_conds(); // keep videos in memory
- }
- 
 
 // ## start waiting for him to hold the touch bar ####
 while((BarOn == FALSE) && (stopAll == FALSE))
@@ -163,6 +166,7 @@ while((FixOn==FALSE) && (BarOn==TRUE) && (stopAll == FALSE))
     if(get_bar_state()==0)
 		{
 		display_fixspot(0); // Hide fix point
+                Gflush(1);
 		SendEvents(NLX_FIXSPOT_OFF);
 		SendEvents(NLX_BARRELEASED);
 		BarOn = FALSE;
@@ -194,6 +198,8 @@ while((BarOn==TRUE) && (FixOn==TRUE) && (timer_expired()==0) && (stopAll == FALS
 		
     if(get_bar_state()==0)
 		{
+		display_fixspot(0); // Hide fix point
+                Gflush(1);
 		SendEvents(NLX_BARRELEASED);
 		BarOn = FALSE;
 		}		
@@ -204,7 +210,7 @@ SendEvents(NLX_STIM_ON);
 InitObjects(SelectedStimulus,1,Coherence);           // Set positions for objects   
 MovieOn = TRUE;
 MS_TIMERset(1,FixSpotOnTime); // Set delay for target to dissapear
-MS_TIMERset(2,MovieOnTime); // Set delay for target to dissapear
+MS_TIMERset(2,MovieOnTime); // duration of movie 
 MS_TIMERset(3,TargetDelay); // Delay before showing the saccade targets
 MS_TIMERset(4,MaxResponsTime); // set max duration 
 
@@ -248,6 +254,7 @@ while((BarOn==TRUE) && (FixOn==TRUE) && (stopAll == FALSE))         // show dots
 
 	if(get_bar_state()==0)
 		{
+		display_fixspot(0); // Hide fix point
 		SendEvents(NLX_BARRELEASED);
 		BarOn = FALSE;
 		}
@@ -255,11 +262,12 @@ while((BarOn==TRUE) && (FixOn==TRUE) && (stopAll == FALSE))         // show dots
         CheckKey();
 
 
-	if(MS_TIMERcheck(2)!=0) // Turn off movie and fixspot
+        if(MS_TIMERcheck(2)!=0) // Step to next frame in movie
 		{
 		Gmovie_step(CURRMOVIE,Direction,MOVIE_STEP_WRAP); // update the moving grating for the target
-		Gflush(1);
+                
 		}
+        Gflush(1);
 	}
 	
 
@@ -289,6 +297,8 @@ if((Saccade_Start==TRUE) && (stopAll == FALSE))
 			
 		if(get_bar_state()==0)
 			{
+                        display_fixspot(0); // Hide fix point
+                        Gflush(1);
 			SendEvents(NLX_BARRELEASED);
 			BarOn = FALSE;
 			break;
@@ -330,17 +340,22 @@ if ((Saccade_Done == TRUE) && (stopAll == FALSE))
 		}
 	}
  
- 
+	// hide all remaining objects
+	HideObjects();
+	SendEvents(NLX_FIXSPOT_OFF);
+
+
 // ## Evaluate trial ####
  if(Saccade_Done==TRUE)
 	{
 	if(Target_correct == TRUE)
 		{
-		if((ResponseTime > 50) && (ResponseTime < (MaxResponsTime)))
+                if((ResponseTime > (100+TargetDelay)) && (ResponseTime < (MaxResponsTime)))
 			{
 			Sucess = TRUE;
 			response_correct(expectedResp);
-			insertCBArray(MyArray, (expectedResp-14) );
+			insertCBArray(RL_Array, (expectedResp-14) );
+			insertCBArray(Corr_Array, 1);
 			}
 		else
 			{
@@ -357,9 +372,13 @@ if ((Saccade_Done == TRUE) && (stopAll == FALSE))
 		}
 	else
 		{
+                // He did a saccade but to the wrong side
 		response_wrong(wrongResp);
-		insertCBArray(MyArray, (wrongResp-14) );
+		insertCBArray(RL_Array, (wrongResp-14) );
+		insertCBArray(Corr_Array, -1);
 		Sucess = FALSE;
+		CorrectInRow = 0;  // reset counter only on wrong saccade
+		TimeDelay(TIMEOUT);  // timeout at wrong answer
 		}
 	}
 else
@@ -376,9 +395,9 @@ else
 		}
 	}
 
-HideObjects(); 	// hide all remaining objects
 
-if ((trial>1) && (stopAll == FALSE))
+
+if ((currTrial>1) && (stopAll == FALSE))
 {
   dont_unload_conds(); // keep items in memory this has to be off if you use seperate conditions with different objects
 }
@@ -446,15 +465,15 @@ int InitObjects(int positionOrder, int colorOrder, int coherencePos)
 {
 int sucess;
 int StartFrame;
-
+int shift = 0;
 switch (positionOrder) // set the positions of the target and the movie direction
 	{
-	case(1): CURRMOVIE = TEST2; GmoveABS(TEST0,  -SaccEcc, 0); GmoveABS(TEST1,  SaccEcc, 0); break;       
-	case(2): CURRMOVIE = TEST3; GmoveABS(TEST0,  -SaccEcc, 0); GmoveABS(TEST1,  SaccEcc, 0); break;  
-	case(3): CURRMOVIE = TEST4; GmoveABS(TEST0,  -SaccEcc, 0); GmoveABS(TEST1,  SaccEcc, 0); break;  
-	case(4): CURRMOVIE = TEST5; GmoveABS(TEST0,  SaccEcc, 0); GmoveABS(TEST1,  -SaccEcc, 0); break;  
-	case(5): CURRMOVIE = TEST6; GmoveABS(TEST0,  SaccEcc, 0); GmoveABS(TEST1,  -SaccEcc, 0); break;  
-	case(6): CURRMOVIE = TEST7; GmoveABS(TEST0,  SaccEcc, 0); GmoveABS(TEST1,  -SaccEcc, 0); break;   
+        case(1): CURRMOVIE = TEST2; GmoveABS(TEST0,  -SaccEcc, 0); GmoveABS(TEST1,  SaccEcc, 0); shift=-0; break;       
+        case(2): CURRMOVIE = TEST3; GmoveABS(TEST0,  -SaccEcc, 0); GmoveABS(TEST1,  SaccEcc, 0); shift=-0; break;  
+        case(3): CURRMOVIE = TEST4; GmoveABS(TEST0,  -SaccEcc, 0); GmoveABS(TEST1,  SaccEcc, 0); shift=-0; break;  
+        case(4): CURRMOVIE = TEST5; GmoveABS(TEST0,  SaccEcc, 0); GmoveABS(TEST1,  -SaccEcc, 0); shift= 0; break;  
+        case(5): CURRMOVIE = TEST6; GmoveABS(TEST0,  SaccEcc, 0); GmoveABS(TEST1,  -SaccEcc, 0); shift= 0; break;  
+        case(6): CURRMOVIE = TEST7; GmoveABS(TEST0,  SaccEcc, 0); GmoveABS(TEST1,  -SaccEcc, 0); shift= 0; break;   
 	}
 	
 	
@@ -474,7 +493,7 @@ switch (coherencePos) // set the positions of the target and the movie direction
 	}	
 // StartFrame=2000; 
 Gon_off(CURRMOVIE, ON);                          // turn target on
-GmoveABS(CURRMOVIE, MovieX, MovieY);
+GmoveABS(CURRMOVIE, MovieX+shift, MovieY);
 Gmovie_step(CURRMOVIE,1,MOVIE_FIRST_FRAME);     // show first frame of Target
 // Gmovie_step(CURRMOVIE,1,StartFrame);     // show first frame of Target
 sucess = Gflush(1);   // update the screen before marking the positions (important)
@@ -588,6 +607,7 @@ if(CurrentReward > MaxReward)
 if(CurrentReward < MinReward)
     { CurrentReward=MinReward; }  // Make sure that the reward is above or equal to MinReward
 
+lastReward =	CurrentReward;
 for (Counter=1;Counter<=CurrentReward;Counter++)
 	{  
 		reward();
@@ -633,10 +653,10 @@ return ParValue;
 // Trial is the trial number from cortex, Coherence is the coherence in percent and Direc is a number from 1 to 6 
 // where 1-3 is left stimulus and 4-7 is right stimulus
 // int WriteTrialParam(int pOrder, int cOrder, int Direc)
-int WriteTrialParam(int trial, int coherence, int SelectedStimulus)
+int WriteTrialParam(int trialNr, int coherence, int SelectedStimulus)
 {
 int d1, d2, d3;
-int value = trial;
+int value = trialNr;
 int condition = get_cond_num ();
 
 // split the trial number up in individual digits
@@ -663,7 +683,7 @@ encode(PARAMBASE+ (int) (FixPosY*100)); // 02 Position Fixpoint Y
 encode(PARAMBASE+ (int) (MovieX*100)); // 03 Position movie X
 encode(PARAMBASE+ (int) (MovieY*100)); // 04 Position movie Y
 encode(PARAMBASE+ (int) (100- (10*(coherence-1))) );  // 05 coherence
-encode(PARAMBASE+ trial );  // 06 trial number
+encode(PARAMBASE+ trialNr );  // 06 trial number
 encode(PARAMBASE+ condition );   // 07 condition 
 encode(PARAMBASE+ SelectedStimulus);        // 08 selected stimulus 1-3 is left 4-6 is right
 encode(PARAMBASE+ 0);        // 15 unused
@@ -738,21 +758,61 @@ int Stimulus;
 float myMean = 0;
 int mySum = 0;
 int length = newArray[0];
+int threshold;
+int ranValue;
+
 for (i=2;i<(length+2);i++)  // I have to check if this is really the entire array
 	{
 	mySum = mySum + newArray[i];
 	}
 myMean = ( ((float) mySum) / ((float) length) );
 
+threshold = (myMean+1)*20000;
+ranValue  = random(0,40000);
 
-if ( (myMean+1)*16383 > rand2() )
-{
+if ( threshold > ranValue )
+	{
 	Stimulus = random(1,4); //  1-3 is left 4-6 is right
-}
+	}
 else
-{
+	{
 	Stimulus = random(4,7); //  1-3 is left 4-6 is right
+	}
+return Stimulus;
 }
 
-return Stimulus;
+
+int percentCorrect(pint newArray)
+{
+/* calculate percent correct from an array of the last N trials, it assumes 
+that the array given as input contains a 1 for correct and a -1 for wrong
+response, any other value is ignored */
+int i;
+int correct = 0;
+int wrong = 0;
+int pctCorrect;
+int length = newArray[0];
+
+for (i=2;i<(length+2);i++)  // I have to check if this is really the entire array
+	{
+        if (newArray[i]==1)
+		{
+		correct++;
+		}
+	
+        if (newArray[i]==-1)
+		{
+		wrong++;
+		}	
+	}
+if ((correct+wrong)>1) // check for divide by zero error
+        {
+        pctCorrect = ( (correct*100)/(correct+wrong) );
+        }
+        else
+        {
+        pctCorrect = 0;
+        }
+
+return pctCorrect;
 }

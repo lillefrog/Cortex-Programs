@@ -35,7 +35,7 @@
 #define NLX_RECORD_START      2    
 #define NLX_SUBJECT_START     4    
 #define NLX_STIM_ON           8 
-#define NLX_EVENT_1        9 
+#define NLX_TARGET_ON        9 
 #define NLX_EVENT_2        10
 #define NLX_EVENT_3        11
 #define NLX_EVENT_4        12
